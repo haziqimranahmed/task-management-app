@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A modern, high-performance vanilla JavaScript task management web application with multi-workspace support, Kanban board, drag-and-drop, and localStorage persistence.">
+  <title>TaskFlow | Modern Developer Task Manager</title>
+  
+  <!-- Modern Typography (Plus Jakarta Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>" type="image/svg+xml">
+</head>
+<body>
+  <!-- Root App Shell -->
+  <div id="app-container" class="app-layout">
+    
+    <!-- Top Navigation Bar -->
+    <header class="app-header">
+      <div class="header-inner container">
+        
+        <!-- Brand Identity -->
+        <div class="brand">
+          <div class="brand-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="4" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-title">TaskFlow</h1>
+            <span class="brand-badge">Dev Workspace</span>
+          </div>
+        </div>
+
+        <!-- Workspace Switcher Tabs -->
+        <nav class="workspace-nav" aria-label="Workspaces">
+          <div class="workspace-tabs-group" id="workspace-tabs" role="tablist">
+            <!-- Rendered dynamically by ui.js -->
+          </div>
+        </nav>
+
+        <!-- Header Actions: New Task Button & Mobile Activity Button -->
+        <div class="header-actions">
+          <button type="button" id="open-create-task-btn" class="btn btn-primary" aria-haspopup="dialog">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/>
+            </svg>
+            <span>New Task</span>
+          </button>
+
+          <!-- Mobile Activity Drawer Button -->
+          <button type="button" id="mobile-activity-toggle" class="btn btn-ghost mobile-only-btn" aria-expanded="false" aria-controls="mobile-activity-panel" aria-label="Toggle recent activity feed">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+            </svg>
+            <span>Activity</span>
+            <span id="mobile-activity-badge" class="badge-count">0</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Storage Warning Banner (Visible if localStorage fails or corrupted) -->
+    <aside id="storage-alert-banner" class="storage-alert hidden" role="alert" aria-live="assertive">
+      <div class="alert-content container">
+        <svg class="icon alert-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+        </svg>
+        <span id="storage-alert-message" class="alert-text"></span>
+        <button type="button" id="storage-alert-dismiss" class="alert-dismiss" aria-label="Dismiss alert">✕</button>
+      </div>
+    </aside>
+
+    <!-- Subheader / Toolbar: Search, Filters & Sorting -->
+    <section class="toolbar-section">
+      <div class="container toolbar-container">
+        
+        <!-- Search Input -->
+        <div class="search-box">
+          <label for="search-input" class="sr-only">Search tasks by title or description</label>
+          <div class="search-input-wrapper">
+            <svg class="icon search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+            </svg>
+            <input 
+              type="search" 
+              id="search-input" 
+              placeholder="Search title or description..." 
+              autocomplete="off"
+              spellcheck="false"
+            >
+          </div>
+        </div>
+
+        <!-- Filter Controls Group -->
+        <div class="filters-group">
+          
+          <!-- Status Filter -->
+          <div class="filter-item">
+            <label for="status-filter" class="filter-label">Status</label>
+            <select id="status-filter" class="form-select">
+              <option value="all">All Statuses</option>
+              <option value="todo">To Do</option>
+              <option value="in-progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+
+          <!-- Priority Filter -->
+          <div class="filter-item">
+            <label for="priority-filter" class="filter-label">Priority</label>
+            <select id="priority-filter" class="form-select">
+              <option value="all">All Priorities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+
+          <!-- Due Date Sort -->
+          <div class="filter-item">
+            <label for="sort-select" class="filter-label">Sort by</label>
+            <select id="sort-select" class="form-select">
+              <option value="earliest">Due Date: Earliest First</option>
+              <option value="latest">Due Date: Latest First</option>
+            </select>
+          </div>
+
+          <!-- Clear Filters Button -->
+          <button type="button" id="clear-filters-btn" class="btn btn-secondary btn-clear-filters hidden" aria-label="Clear all search and filter conditions">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M4 2a1.5 1.5 0 00-1.5 1.5v9A1.5 1.5 0 004 14h7.086l4.207 4.207a1 1 0 001.414-1.414L4 4.121V3.5A.5.5 0 014.5 3H16a.5.5 0 01.5.5v4a.75.75 0 001.5 0v-4A2 2 0 0016 1.5H4z" clip-rule="evenodd" />
+            </svg>
+            <span>Reset</span>
+          </button>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Mobile Collapsible Activity Drawer -->
+    <div id="mobile-activity-panel" class="mobile-activity-panel" aria-label="Recent activity log on mobile">
+      <div class="panel-header">
+        <h3 class="panel-title">Recent Activity</h3>
+        <span class="panel-sub">Latest 5 actions</span>
+      </div>
+      <ul id="mobile-activity-list" class="activity-list" role="list">
+        <!-- Rendered dynamically by ui.js -->
+      </ul>
+    </div>
+
+    <!-- Main Workspace Content (Kanban + Activity Sidebar) -->
+    <main class="main-content container">
+      
+      <!-- Current Workspace Breadcrumb Info -->
+      <div class="workspace-header-bar">
+        <div class="ws-heading">
+          <h2 class="section-title">
+            <span id="active-workspace-badge">Personal</span> Tasks
+          </h2>
+          <p class="section-description">Manage and track issues across your workflow board.</p>
+        </div>
+      </div>
+
+      <div class="workspace-grid">
+        
+        <!-- Kanban Columns Board -->
+        <section class="kanban-board" id="kanban-board" aria-label="Task board columns">
+          
+          <!-- Column 1: To Do -->
+          <div class="kanban-column" data-status="todo" aria-label="To Do Column">
+            <div class="column-header status-todo-header">
+              <div class="column-title-wrap">
+                <span class="status-indicator status-todo-dot" aria-hidden="true"></span>
+                <h3 class="column-heading">To Do</h3>
+              </div>
+              <span id="count-todo" class="column-badge" aria-label="Tasks in To Do">0</span>
+            </div>
+
+            <div class="column-tasks" id="col-tasks-todo" role="list" aria-label="To Do task list">
+              <!-- Task cards rendered dynamically -->
+            </div>
+
+            <div id="empty-todo" class="column-empty hidden">
+              <div class="empty-icon" aria-hidden="true">📋</div>
+              <p class="empty-text">No tasks to do</p>
+            </div>
+          </div>
+
+          <!-- Column 2: In Progress -->
+          <div class="kanban-column" data-status="in-progress" aria-label="In Progress Column">
+            <div class="column-header status-in-progress-header">
+              <div class="column-title-wrap">
+                <span class="status-indicator status-in-progress-dot" aria-hidden="true"></span>
+                <h3 class="column-heading">In Progress</h3>
+              </div>
+              <span id="count-in-progress" class="column-badge" aria-label="Tasks In Progress">0</span>
+            </div>
+
+            <div class="column-tasks" id="col-tasks-in-progress" role="list" aria-label="In Progress task list">
+              <!-- Task cards rendered dynamically -->
+            </div>
+
+            <div id="empty-in-progress" class="column-empty hidden">
+              <div class="empty-icon" aria-hidden="true">⚡</div>
+              <p class="empty-text">No tasks in progress</p>
+            </div>
+          </div>
+
+          <!-- Column 3: Done -->
+          <div class="kanban-column" data-status="done" aria-label="Done Column">
+            <div class="column-header status-done-header">
+              <div class="column-title-wrap">
+                <span class="status-indicator status-done-dot" aria-hidden="true"></span>
+                <h3 class="column-heading">Done</h3>
+              </div>
+              <span id="count-done" class="column-badge" aria-label="Completed tasks">0</span>
+            </div>
+
+            <div class="column-tasks" id="col-tasks-done" role="list" aria-label="Done task list">
+              <!-- Task cards rendered dynamically -->
+            </div>
+
+            <div id="empty-done" class="column-empty hidden">
+              <div class="empty-icon" aria-hidden="true">✅</div>
+              <p class="empty-text">No completed tasks</p>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Desktop Activity Sidebar -->
+        <aside class="activity-sidebar" aria-label="Recent Activity Stream">
+          <div class="activity-card-container">
+            <div class="activity-card-header">
+              <div class="activity-title-group">
+                <svg class="icon activity-header-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+                </svg>
+                <h3 class="activity-heading">Recent Activity</h3>
+              </div>
+              <span class="activity-subtitle">Latest 5 actions</span>
+            </div>
+            
+            <ul id="desktop-activity-list" class="activity-list" role="list">
+              <!-- Rendered dynamically by ui.js -->
+            </ul>
+          </div>
+        </aside>
+
+      </div>
+    </main>
+
+    <!-- Create / Edit Task Modal Dialog -->
+    <div id="task-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="task-modal-title" class="modal-title">Create New Task</h3>
+          <button type="button" id="task-modal-close-btn" class="modal-close-btn" aria-label="Close dialog">✕</button>
+        </div>
+
+        <form id="task-form" class="modal-form" novalidate>
+          <input type="hidden" id="task-id-input" name="id">
+
+          <!-- Workspace Selection -->
+          <div class="form-group">
+            <label for="task-workspace-input" class="form-label">Workspace <span class="required">*</span></label>
+            <select id="task-workspace-input" name="workspaceId" class="form-input">
+              <option value="personal">Personal</option>
+              <option value="work">Work</option>
+            </select>
+            <span class="field-error hidden" id="field-error-workspaceId" role="alert"></span>
+          </div>
+
+          <!-- Title Field -->
+          <div class="form-group">
+            <label for="task-title-input" class="form-label">Task Title <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="task-title-input" 
+              name="title" 
+              class="form-input" 
+              placeholder="e.g. Implement OAuth2 flow" 
+              maxlength="120"
+              required
+            >
+            <span class="field-error hidden" id="field-error-title" role="alert"></span>
+          </div>
+
+          <!-- Row: Priority & Status -->
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="task-priority-input" class="form-label">Priority <span class="required">*</span></label>
+              <select id="task-priority-input" name="priority" class="form-input" required>
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+              <span class="field-error hidden" id="field-error-priority" role="alert"></span>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="task-status-input" class="form-label">Status <span class="required">*</span></label>
+              <select id="task-status-input" name="status" class="form-input" required>
+                <option value="todo" selected>To Do</option>
+                <option value="in-progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+              <span class="field-error hidden" id="field-error-status" role="alert"></span>
+            </div>
+          </div>
+
+          <!-- Due Date Field -->
+          <div class="form-group">
+            <label for="task-due-date-input" class="form-label">Due Date <span class="required">*</span></label>
+            <input 
+              type="date" 
+              id="task-due-date-input" 
+              name="dueDate" 
+              class="form-input" 
+              required
+            >
+            <span class="field-error hidden" id="field-error-dueDate" role="alert"></span>
+          </div>
+
+          <!-- Description Field -->
+          <div class="form-group">
+            <label for="task-description-input" class="form-label">Description <span class="required">*</span></label>
+            <textarea 
+              id="task-description-input" 
+              name="description" 
+              class="form-input form-textarea" 
+              rows="4" 
+              placeholder="Provide details, acceptance criteria, or technical notes..."
+              maxlength="2000"
+              required
+            ></textarea>
+            <span class="field-error hidden" id="field-error-description" role="alert"></span>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="modal-footer">
+            <button type="button" id="task-cancel-btn" class="btn btn-secondary">Cancel</button>
+            <button type="submit" id="task-submit-btn" class="btn btn-primary">Save Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Task Details Modal Dialog -->
+    <div id="details-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="details-title">
+      <div class="modal-card modal-details-card">
+        <div class="modal-header">
+          <div class="details-header-tags">
+            <span id="details-workspace" class="badge badge-workspace"></span>
+            <span id="details-priority" class="badge badge-priority"></span>
+            <span id="details-status" class="badge badge-status"></span>
+            <span id="details-overdue-badge" class="badge badge-overdue hidden">Overdue</span>
+          </div>
+          <button type="button" id="details-modal-close-btn" class="modal-close-btn" aria-label="Close details dialog">✕</button>
+        </div>
+
+        <div class="details-body">
+          <h2 id="details-title" class="details-title-text"></h2>
+          
+          <div class="details-meta-row">
+            <div class="meta-item">
+              <span class="meta-label">Due Date</span>
+              <span id="details-due-date" class="meta-value"></span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Created</span>
+              <span id="details-created" class="meta-value"></span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Last Updated</span>
+              <span id="details-updated" class="meta-value"></span>
+            </div>
+          </div>
+
+          <div class="details-section">
+            <h4 class="details-section-label">Description</h4>
+            <div id="details-description" class="details-description-content"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer details-footer">
+          <div class="details-action-left">
+            <button type="button" id="details-delete-btn" class="btn btn-danger-outline">
+              <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clip-rule="evenodd" />
+              </svg>
+              <span>Delete</span>
+            </button>
+          </div>
+          <div class="details-action-right">
+            <button type="button" id="details-edit-btn" class="btn btn-primary">
+              <svg class="icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+              </svg>
+              <span>Edit Task</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Delete Modal Dialog -->
+    <div id="delete-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+      <div class="modal-card modal-delete-card">
+        <div class="modal-header">
+          <h3 id="delete-modal-title" class="modal-title">Delete Task Confirmation</h3>
+          <button type="button" id="delete-modal-close-btn" class="modal-close-btn" aria-label="Close delete dialog">✕</button>
+        </div>
+
+        <div class="delete-modal-body">
+          <div class="warning-icon-wrapper" aria-hidden="true">
+            <svg class="warning-big-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div class="delete-warning-text">
+            <p>Are you sure you want to delete <strong id="delete-task-name"></strong>?</p>
+            <p class="delete-subtext">This action cannot be undone and will be permanently removed from your workspace.</p>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="delete-cancel-btn" class="btn btn-secondary">Cancel</button>
+          <button type="button" id="delete-confirm-btn" class="btn btn-danger">Yes, Delete Task</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Region -->
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  </div>
+
+  <!-- JavaScript Modules (Loaded in strictly non-module vanilla order) -->
+  <script src="js/storage.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
